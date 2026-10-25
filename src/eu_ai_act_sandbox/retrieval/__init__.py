@@ -7,6 +7,7 @@ from .acquisition import (
 )
 from .chunking import RegulatoryChunk, chunk_regulatory_document
 from .embeddings import ChunkEmbedding, LocalSentenceTransformerEmbedder, QueryEmbedding
+from .errors import RetrievalBackendUnavailable
 from .evaluation import (
     RetrievalEvalCase,
     RetrievalEvalDataset,
@@ -69,6 +70,7 @@ __all__ = [
     "PgVectorIndexStore",
     "QueryEmbedding",
     "QueryEmbedder",
+    "RetrievalBackendUnavailable",
     "RetrievalRequest",
     "RetrievalEvalCase",
     "RetrievalEvalDataset",

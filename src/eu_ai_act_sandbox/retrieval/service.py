@@ -8,6 +8,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Protocol
 
 from .embeddings import QueryEmbedding
+from .errors import RetrievalBackendUnavailable
 from .index_store import PublishedFileIndex
 from .search import (
     FileHybridRetriever,
@@ -111,9 +112,21 @@ class PgVectorRetrievalBackend:
         self, *, query: RetrievalQuery, query_embedding: QueryEmbedding,
         tracer: Tracer | None = None,
     ) -> RetrievalResponse:
-        return self.retriever.retrieve(
-            query=query, query_embedding=query_embedding, tracer=tracer
-        )
+        try:
+            import psycopg
+        except ImportError as exc:
+            raise RuntimeError(
+                "install the optional 'postgres' dependency group for PostgreSQL retrieval"
+            ) from exc
+
+        try:
+            return self.retriever.retrieve(
+                query=query, query_embedding=query_embedding, tracer=tracer
+            )
+        except (psycopg.OperationalError, psycopg.InterfaceError) as exc:
+            raise RetrievalBackendUnavailable(
+                "retrieval backend is unavailable"
+            ) from exc
 
 
 class RegulatoryRetrievalService:

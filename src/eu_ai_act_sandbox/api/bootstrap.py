@@ -14,6 +14,7 @@ from eu_ai_act_sandbox.retrieval import (
     LocalSentenceTransformerEmbedder,
     PgVectorHybridRetriever,
     PgVectorRetrievalBackend,
+    RetrievalBackendUnavailable,
     RegulatoryRetrievalService,
 )
 
@@ -60,6 +61,10 @@ def create_configured_app(settings: ApiSettings | None = None) -> FastAPI:
         database_url = runtime_settings.database_url
         if database_url is None:
             raise ValueError("DATABASE_URL is required when RETRIEVAL_BACKEND=postgres")
+        connect_timeout = runtime_settings.postgres_connect_timeout_seconds
+        connection_options = (
+            f"-c statement_timeout={runtime_settings.postgres_statement_timeout_ms}"
+        )
         try:
             import psycopg
         except ImportError as exc:
@@ -68,18 +73,31 @@ def create_configured_app(settings: ApiSettings | None = None) -> FastAPI:
             ) from exc
 
         def get_postgres_service() -> Iterator[RegulatoryRetrievalService]:
-            with psycopg.connect(database_url) as connection:
-                yield RegulatoryRetrievalService(
-                    embedder=embedder,
-                    backend=PgVectorRetrievalBackend(PgVectorHybridRetriever(connection)),
-                )
+            try:
+                with psycopg.connect(
+                    database_url,
+                    connect_timeout=connect_timeout,
+                    options=connection_options,
+                ) as connection:
+                    yield RegulatoryRetrievalService(
+                        embedder=embedder,
+                        backend=PgVectorRetrievalBackend(PgVectorHybridRetriever(connection)),
+                    )
+            except (psycopg.OperationalError, psycopg.InterfaceError) as exc:
+                raise RetrievalBackendUnavailable(
+                    "retrieval backend is unavailable"
+                ) from exc
 
         service_dependency = get_postgres_service
 
         def check_postgres_readiness() -> bool:
             if not runtime_settings.embedding_model_path.is_dir():
                 return False
-            with psycopg.connect(database_url, connect_timeout=3) as connection:
+            with psycopg.connect(
+                database_url,
+                connect_timeout=connect_timeout,
+                options=connection_options,
+            ) as connection:
                 row = connection.execute(
                     "SELECT 1 FROM regulatory_index_versions "
                     "WHERE publication_status = 'PUBLISHED' LIMIT 1"

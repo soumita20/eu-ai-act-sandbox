@@ -28,20 +28,25 @@ class RetrievalRequestBody(BaseModel):
 
     index_version: str = Field(min_length=1, max_length=128)
     query_text: str = Field(min_length=1, max_length=4000)
-    language: str = Field(min_length=1)
+    language: str = Field(min_length=1, max_length=35)
     as_of_date: date
-    document_version_ids: list[Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+    document_version_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
+        min_length=1, max_length=100
+    )
     source_authorities: list[SourceAuthority] = Field(
         default_factory=lambda: [
             SourceAuthority.BINDING_LEGAL_TEXT,
             SourceAuthority.OFFICIAL_GUIDANCE,
         ],
         min_length=1,
+        max_length=5,
     )
-    source_ids: list[Annotated[str, Field(min_length=1)]] = Field(default_factory=list)
+    source_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
+        default_factory=list, max_length=100
+    )
     article_reference: str | None = Field(default=None, min_length=1, max_length=128)
-    top_k: int = Field(default=8, ge=1, le=100)
-    candidate_multiplier: int = Field(default=5, ge=1, le=20)
+    top_k: int = Field(default=8, ge=1, le=100, strict=True)
+    candidate_multiplier: int = Field(default=5, ge=1, le=20, strict=True)
 
     def to_retrieval_request(self) -> RetrievalRequest:
         """Convert validated HTTP values into the framework-neutral request."""
@@ -57,6 +62,24 @@ class RetrievalRequestBody(BaseModel):
             top_k=self.top_k,
             candidate_multiplier=self.candidate_multiplier,
         )
+
+
+class ValidationErrorResponse(BaseModel):
+    """Privacy-minimized validation error returned by the API."""
+
+    detail: str
+
+
+class RequestTooLargeResponse(BaseModel):
+    """Sanitized response for a request exceeding the API body-size limit."""
+
+    detail: str
+
+
+class ServiceUnavailableResponse(BaseModel):
+    """Sanitized response for configured retrieval backend outages."""
+
+    detail: str
 
 
 class CitationResponse(BaseModel):
@@ -117,7 +140,24 @@ def create_retrieval_router(
     """Create a router whose retrieval service is supplied by dependency injection."""
     router = APIRouter(tags=["retrieval"])
 
-    @router.post("/retrieval/search", response_model=RetrievalResponseBody)
+    @router.post(
+        "/retrieval/search",
+        response_model=RetrievalResponseBody,
+        responses={
+            422: {
+                "model": ValidationErrorResponse,
+                "description": "Request validation failed",
+            },
+            413: {
+                "model": RequestTooLargeResponse,
+                "description": "Request body exceeds the maximum size",
+            },
+            503: {
+                "model": ServiceUnavailableResponse,
+                "description": "Retrieval backend unavailable",
+            },
+        },
+    )
     def search_regulations(
         body: RetrievalRequestBody,
         service: Annotated[RegulatoryRetrievalService, Depends(service_dependency)],
@@ -125,7 +165,7 @@ def create_retrieval_router(
         try:
             request = body.to_retrieval_request()
         except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail="Invalid request") from exc
         with retrieval_span(
             tracer,
             "regulatory.retrieval",

@@ -6,8 +6,11 @@ from .health import HealthResponse, create_health_router
 from .retrieval import (
     CitationResponse,
     EvidenceResponse,
+    RequestTooLargeResponse,
     RetrievalRequestBody,
     RetrievalResponseBody,
+    ServiceUnavailableResponse,
+    ValidationErrorResponse,
     create_retrieval_router,
 )
 
@@ -15,8 +18,11 @@ __all__ = [
     "CitationResponse",
     "EvidenceResponse",
     "HealthResponse",
+    "RequestTooLargeResponse",
     "RetrievalRequestBody",
     "RetrievalResponseBody",
+    "ServiceUnavailableResponse",
+    "ValidationErrorResponse",
     "create_app",
     "create_configured_app",
     "create_health_router",
