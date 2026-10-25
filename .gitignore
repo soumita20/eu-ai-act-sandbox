@@ -31,3 +31,11 @@ data/index/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Files
+docs/architecture - Copy.md
+docs/claude_architecture.md
+docs/architecture.md
+docs/backup text.md
+
+notes.txt.txt
