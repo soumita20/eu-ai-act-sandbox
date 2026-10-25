@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Retrieval Evaluation Dataset",
+  "type": "object",
+  "required": ["dataset_id", "schema_version", "description", "cases"],
+  "properties": {
+    "dataset_id": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "retrieval-evaluation-v1"},
+    "description": {"type": "string", "minLength": 1},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case_id", "case_type", "query_text", "language", "as_of_date", "document_version_ids", "source_authorities", "expected_chunk_ids", "expected_article_references", "expected_empty"],
+        "properties": {
+          "case_id": {"type": "string", "minLength": 1},
+          "case_type": {"enum": ["exact_article", "semantic", "cross_reference", "ambiguous", "missing_evidence", "temporal"]},
+          "query_text": {"type": "string", "minLength": 1},
+          "language": {"type": "string", "minLength": 1},
+          "as_of_date": {"type": "string", "format": "date"},
+          "document_version_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "source_authorities": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["BINDING_LEGAL_TEXT", "OFFICIAL_GUIDANCE", "TECHNICAL_STANDARD", "PROJECT_AUTHORED", "OTHER"]}},
+          "source_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "article_reference": {"type": ["string", "null"]},
+          "expected_chunk_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "expected_article_references": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "expected_empty": {"type": "boolean"}
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {"properties": {"expected_empty": {"const": true}, "expected_chunk_ids": {"maxItems": 0}, "expected_article_references": {"maxItems": 0}}},
+          {"properties": {"expected_empty": {"const": false}, "expected_chunk_ids": {"minItems": 1}}}
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

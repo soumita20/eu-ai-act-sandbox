@@ -1,0 +1,126 @@
+architecture.md
+--------------------------------------------------
+1. Why do the Goals in architecture.md matter?
+
+There are four decisions here that I want you to understand before approving this section.
+
+A. Each compliance control is independent
+Suppose we later add an assessment for a high-risk AI system's human oversight requirements. We should be able to add that control without rewriting the Article 5 prohibited-practices evaluator.
+This leads naturally to a modular Python design, independent unit tests, and easier maintenance.
+
+B. A compliance result needs more than PASS or FAIL
+Consider an application where the user has not supplied enough information to determine its intended purpose. Marking it as compliant would be misleading.
+We should define a consistent outcome model:
+Outcome	Meaning
+PASS	The implemented check passed based on available evidence.
+FAIL	The implemented check identified a failure.
+REVIEW_REQUIRED	A human decision or additional investigation is needed.
+NOT_APPLICABLE	The control was assessed and determined not to apply.
+NOT_EVALUATED	The control has not been assessed.
+This distinction will be central to our compliance engine and reporting.
+
+C. The application being tested must be isolated
+Our research assistant might retrieve a malicious document or attempt to use a tool in an unintended way. We cannot allow the test application to access the sandbox's secrets or host resources.
+This is why isolation is a core requirement, not an optional enhancement. We will define the concrete isolation architecture when we design security and deployment.
+
+D. CI/CD needs explicit blocking policies
+A deployment pipeline should not block a release merely because an LLM produced a low confidence score, nor allow a release simply because an overall score looks good.
+Instead, we will define which test failures block deployment, which findings require human approval, and which results are informational. Those policies will be version-controlled and testable.
+
+2. How Section 2 connects to your existing documents
+You already have several supporting documents, so we should avoid duplicating their full contents.
+Document	What Section 2 establishes for it
+requirements.md	The goals become functional and non-functional requirements.
+compliance-model.md	The regulatory scope and control outcomes are defined in more detail.
+evaluation-strategy.md	The success criteria become test cases, metrics, and acceptance thresholds.
+threat-model.md	The security and isolation goals become assets, threats, and mitigations.
+architecture.md	This section defines the scope that the architecture must support.
+
+
+1. Why LangGraph instead of a fully autonomous agent?
+A compliance workflow needs predictable execution and traceability. LangGraph lets us define nodes and conditional transitions, so an LLM cannot freely skip a required control or declare the whole assessment compliant.
+
+2. Why structured workflow state?
+Each node needs a reliable contract. Pydantic validation helps catch malformed data before it reaches the next node. Persisted references keep the graph state manageable when documents are large.
+
+3. Why separate the LLM from the decision engine?
+The LLM can analyze evidence, but deterministic code validates its output and applies the control policy. This reduces the risk of unsupported conclusions and makes decisions easier to test.
+
+4. Why checkpoints, retries, and audit events?
+A workflow may fail midway or wait for a reviewer. Persisted checkpoints support recovery, bounded retries handle temporary failures, and audit events explain what happened during an assessment.
+
+Section 6 - RAG Architecture questions
+-----------------------------------------------------
+
+1. Why PostgreSQL with pgvector instead of a separate vector database?
+For the initial implementation, this is a sensible choice because the platform needs both relational integrity and semantic search.
+- PostgreSQL stores assessment runs, evidence, rules, findings and audit records.
+- pgvector stores and searches embeddings associated with regulatory text.
+- Foreign keys connect findings to evidence and rules.
+- Transactions help prevent partially persisted assessment results.
+- One database platform reduces deployment, backup and monitoring complexity.
+The main trade-off is that PostgreSQL must support both transactional workloads and vector retrieval. If the knowledge base or retrieval workload grows substantially, we can benchmark performance and reconsider the storage architecture based on measured bottlenecks.
+
+2. Why not let the LLM decide compliance directly?
+Consider a system that processes job applications. An LLM might identify a potential high-risk use case from its intended purpose and retrieve relevant legislation.
+However, its classification could be incomplete or incorrect. A deterministic policy engine can enforce explicit checks, validate required inputs and prevent a prohibited workflow from proceeding.
+The LLM helps interpret evidence. The policy engine applies defined rules. Human review handles ambiguous or legally consequential cases.
+This separation is especially important for your portfolio because it demonstrates that you understand the difference between building an AI agent and engineering a controlled AI system.
+
+3. Why version the regulatory corpus?
+Suppose a compliance assessment is completed today and the regulatory knowledge base is updated next month. If the original result is reviewed later, the platform must identify the exact source version used in the original assessment.
+Without versioning, the same question could return different regulatory passages, making it difficult to investigate discrepancies or explain previous decisions.
+Versioned documents, rules, embeddings and run manifests make this history traceable. They also allow you to evaluate whether a change in results came from new legislation, a changed rule, a new model or a retrieval improvement.
+
+4. Why evaluate RAG separately?
+A compliance assessment can fail for several different reasons:
+- The correct provision was never retrieved.
+- The correct provision was retrieved but omitted from the model context.
+- The model misinterpreted the provision.
+- The policy engine applied the wrong rule.
+- The report cited evidence that did not support the conclusion.
+Separate RAG, policy-engine and end-to-end metrics help isolate these failure modes. This is more useful than evaluating the system using a single accuracy score.
+
+Section 7 - Auditability and Decision Traceability
+
+1. Why separate security, observability and auditability?
+They answer three different questions.
+- Security: Was access or an action properly controlled?
+- Observability: What happened, and why did the system behave that way?
+- Auditability: Can we reconstruct who did what, under which rules and evidence, and what decision followed?
+A structured log may help diagnose a failed model call, but it may not establish which policy version was used for a completed assessment. Conversely, an audit event may prove that a finding was approved, but it may not explain a latency spike.
+A production-grade platform needs all three.
+2. Why isolate public repositories?
+Your test applications are executable code, not merely documents. Running them inside the FastAPI process would give potentially hostile code access to the same process environment and possibly the same credentials.
+An isolated execution environment limits the consequences of malicious code. Network restrictions, resource limits, temporary workspaces and credential separation further reduce the attack surface.
+This is an important architectural boundary to explain during interviews: the agent can request an operation, but the execution environment enforces what that operation is allowed to do.
+3. Why use OpenTelemetry and Prometheus?
+OpenTelemetry provides a common instrumentation approach across application modules and external calls. Prometheus provides a practical way to collect and query metrics, while Grafana makes those metrics accessible through dashboards.
+Together, they help answer questions such as:
+- Which workflow node contributes most to assessment latency?
+- Are failures caused by the database, retrieval layer or LLM provider?
+- Are retries increasing because of a transient outage or a persistent defect?
+- Is a new model or prompt version degrading evaluation performance?
+This supports both traditional application operations and AI-specific quality monitoring.
+4. Why is a PostgreSQL audit table not enough on its own?
+A database is useful for querying and correlating audit events, but database access privileges can permit changes to stored history. The application should therefore restrict modifications, and stronger assurance may require independently controlled audit storage and tamper-evident verification.
+This distinction avoids an overly broad claim that audit records are immutable simply because the application does not normally update them.
+
+Section 8 - Deployment and CI/CD Architecture
+1. Why Docker Compose first instead of Kubernetes?
+Docker Compose allows you to run the API, UI, database, sandbox and observability components with a manageable configuration. It is sufficient for developing the project and demonstrating a single-host deployment.
+Kubernetes introduces additional concerns, including cluster administration, networking, secrets, deployment policies and operational monitoring. Those skills are valuable, but implementing them before the compliance workflow works would increase complexity without proving the core architecture.
+The important architectural choice is to keep application modules independent of the deployment platform so that migration to an orchestrated environment remains possible.
+2. Why build the container image once?
+Imagine that your tests pass for a particular commit. If you rebuild the image separately for staging and production, dependency resolution or base-image changes could produce different artifacts.
+Instead, build an image, scan it, record its digest and promote that same artifact between environments. This improves release traceability and reduces the risk of deploying code that differs from the code that passed testing.
+3. Why are AI evaluations part of CI/CD?
+Traditional tests can establish that the application starts, the API returns the expected response structure and deterministic rules behave correctly. They cannot establish that a RAG system retrieves the right legal provision or that an agent resists prompt injection.
+Your pipeline therefore needs two complementary quality layers:
+- Software quality: Unit tests, integration tests, security scans and deployment checks.
+- AI system quality: Retrieval evaluation, citation checks, policy regression tests, guardrail evaluations and red-team tests.
+For example, if a new embedding model causes relevant Article 5 passages to disappear from the top results, the retrieval evaluation should detect the regression before the new index is published.
+4. Why should database rollback be treated separately?
+Rolling back an application container restores application code, but it does not automatically undo changes already made to PostgreSQL.
+A migration might have added columns, transformed data or removed an obsolete field. An older application version may not work with that schema.
+The expand-and-contract approach reduces this risk by keeping schema changes compatible across releases wherever practical. For more consequential changes, recovery procedures must explicitly account for database state and data preservation.

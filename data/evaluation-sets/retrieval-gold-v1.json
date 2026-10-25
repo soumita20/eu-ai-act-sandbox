@@ -1,0 +1,6 @@
+{
+  "dataset_id": "retrieval-gold-v1",
+  "schema_version": "retrieval-evaluation-v1",
+  "description": "Template only. Add human-reviewed cases after the initial regulatory corpus and index have been published.",
+  "cases": []
+}
