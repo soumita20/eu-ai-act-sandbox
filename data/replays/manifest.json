@@ -1,0 +1,13 @@
+{
+  "fixtures": [
+    {
+      "assessment_schema_version": "assessment-replay-v1",
+      "fixture_id": "phase1-demo-no-pii-v1",
+      "path": "phase1-demo-no-pii-v1.json",
+      "sha256": "3e841af6e8b932656fd78dc1e185656e64c59a5f718928a35cc9587959b4f22a",
+      "title": "Message Assistant \u00b7 no personal data \u00b7 no blocking findings"
+    }
+  ],
+  "manifest_version": "1",
+  "schema_version": "demo-replay-manifest-v1"
+}

@@ -19,6 +19,7 @@ _SUPPORTED_MEDIA_TYPES = frozenset({
     "application/xml",
     "text/xml",
     "text/html",
+    "application/xhtml+xml",
     "text/plain",
 })
 _DOCTYPE_OR_ENTITY = re.compile(rb"<!\s*(DOCTYPE|ENTITY)\b", re.IGNORECASE)
@@ -140,7 +141,7 @@ def _validate_payload(media_type: str, content: bytes) -> None:
             ElementTree.fromstring(content)
         except ElementTree.ParseError as exc:
             raise ValueError("XML payload is not well formed") from exc
-    elif media_type == "text/html":
+    elif media_type in {"text/html", "application/xhtml+xml"}:
         parser = _HTMLStructureCheck()
         try:
             parser.feed(text)

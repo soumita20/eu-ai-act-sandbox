@@ -1,0 +1,157 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg16-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eu_ai_act_sandbox}
+      POSTGRES_USER: ${POSTGRES_USER:-sandbox}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  migrate:
+    image: eu-ai-act-sandbox:phase1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "scripts/migrate_database.py"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sandbox}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-eu_ai_act_sandbox}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  publish-index:
+    image: eu-ai-act-sandbox:phase1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - scripts/publish_pgvector_index.py
+      - --index
+      - /app/data/index/phase1-regulatory-index-v3.json
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sandbox}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-eu_ai_act_sandbox}
+    volumes:
+      - type: bind
+        source: ./data/index/phase1-regulatory-index-v3.json
+        target: /app/data/index/phase1-regulatory-index-v3.json
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    image: eu-ai-act-sandbox:phase1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - uvicorn
+      - eu_ai_act_sandbox.api.bootstrap:create_configured_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      API_KEY: ${API_KEY:?Set API_KEY in .env}
+      API_MAX_CONCURRENT_RETRIEVALS: "1"
+      ASSESSMENT_PERSISTENCE_BACKEND: postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sandbox}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-eu_ai_act_sandbox}
+      EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}
+      EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDING_MODEL_PATH: /app/models/all-MiniLM-L6-v2
+      EMBEDDING_MODEL_REVISION: ${EMBEDDING_MODEL_REVISION:-b8903db39f65d93ae28d49a37c4f3fa90c5f94e0}
+      OTEL_TRACES_EXPORTER: none
+      RETRIEVAL_BACKEND: postgres
+      RETRIEVAL_INDEX_PATH: /app/data/index/phase1-regulatory-index-v3.json
+      REVIEWER_API_KEY: ${REVIEWER_API_KEY:?Set REVIEWER_API_KEY in .env}
+      REVIEWER_ID: ${REVIEWER_ID:-local-reviewer}
+    volumes:
+      - type: bind
+        source: ./models/all-MiniLM-L6-v2
+        target: /app/models/all-MiniLM-L6-v2
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+      - "127.0.0.1:${REVIEWER_UI_PORT:-8502}:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      publish-index:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=3)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+    restart: unless-stopped
+
+  reviewer-ui:
+    image: eu-ai-act-sandbox:phase1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - streamlit
+      - run
+      - ui/reviewer_app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+    environment:
+      REVIEWER_API_BASE_URL: http://127.0.0.1:8000
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    network_mode: service:api
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

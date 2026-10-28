@@ -1,6 +1,218 @@
 {
   "dataset_id": "retrieval-gold-v1",
   "schema_version": "retrieval-evaluation-v1",
-  "description": "Template only. Add human-reviewed cases after the initial regulatory corpus and index have been published.",
-  "cases": []
+  "description": "Draft candidate relevance labels tied to the Phase 1 index. A project reviewer must inspect and approve labels before this dataset becomes a release gate.",
+  "cases": [
+    {
+      "case_id": "ai-act-article-5-exact",
+      "case_type": "exact_article",
+      "query_text": "What AI practices does Article 5 prohibit?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_c318d59e3fc55dee9421c20e473b71ef"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-ai-act-consolidated-en"
+      ],
+      "article_reference": "Article 5",
+      "expected_chunk_ids": [
+        "chk_612960b6b21ad27eaed16c2b"
+      ],
+      "expected_article_references": [
+        "Article 5"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "ai-act-article-6-product-pathway",
+      "case_type": "semantic",
+      "query_text": "Under Article 6(1), what conditions make an AI system high risk through the product safety pathway?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_c318d59e3fc55dee9421c20e473b71ef"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-ai-act-consolidated-en"
+      ],
+      "article_reference": "Article 6",
+      "expected_chunk_ids": [
+        "chk_e75a269833126a6e98e05897"
+      ],
+      "expected_article_references": [
+        "Article 6"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "ai-act-article-50-synthetic-content",
+      "case_type": "semantic",
+      "query_text": "What transparency duties apply to AI-generated or manipulated synthetic content?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_c318d59e3fc55dee9421c20e473b71ef"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-ai-act-consolidated-en"
+      ],
+      "article_reference": "Article 50",
+      "expected_chunk_ids": [
+        "chk_728342044e46a4a06e02d1de"
+      ],
+      "expected_article_references": [
+        "Article 50"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "gdpr-article-13-direct-collection",
+      "case_type": "exact_article",
+      "query_text": "What information must be given when collecting personal data directly from a person?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_18a3e02eb4ed5dd3a0a330accc94ecbc"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-gdpr-consolidated-en"
+      ],
+      "article_reference": "Article 13",
+      "expected_chunk_ids": [
+        "chk_07ec649f6883e5b931b44e15"
+      ],
+      "expected_article_references": [
+        "Article 13"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "gdpr-article-22-automated-decisions",
+      "case_type": "semantic",
+      "query_text": "What rights apply to solely automated decisions that have legal or similarly significant effects on a person?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_18a3e02eb4ed5dd3a0a330accc94ecbc"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-gdpr-consolidated-en"
+      ],
+      "article_reference": "Article 22",
+      "expected_chunk_ids": [
+        "chk_f0d626b09d9821472091fb48"
+      ],
+      "expected_article_references": [
+        "Article 22"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "gdpr-article-44-transfer-principle",
+      "case_type": "exact_article",
+      "query_text": "What is the general principle for transferring personal data to a third country?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_18a3e02eb4ed5dd3a0a330accc94ecbc"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-gdpr-consolidated-en"
+      ],
+      "article_reference": "Article 44",
+      "expected_chunk_ids": [
+        "chk_709ed8d9e0710dbd61dd7f53"
+      ],
+      "expected_article_references": [
+        "Article 44"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "cross-reference-dpia-and-fria",
+      "case_type": "cross_reference",
+      "query_text": "How does an AI Act fundamental rights impact assessment relate to a GDPR data protection impact assessment?",
+      "language": "en",
+      "as_of_date": "2026-10-28",
+      "document_version_ids": [
+        "docv_c318d59e3fc55dee9421c20e473b71ef",
+        "docv_18a3e02eb4ed5dd3a0a330accc94ecbc"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "expected_chunk_ids": [
+        "chk_63284cbcfc2b164125aad376",
+        "chk_a55a986f579849df0b8a5c0e",
+        "chk_47ead147567200e43cd4ad94"
+      ],
+      "expected_article_references": [
+        "Article 27",
+        "Article 35"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "ai-act-temporal-application",
+      "case_type": "temporal",
+      "query_text": "From what date do the additional Article 5 points (ba) and (bb) apply?",
+      "language": "en",
+      "as_of_date": "2026-11-01",
+      "document_version_ids": [
+        "docv_c318d59e3fc55dee9421c20e473b71ef"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-ai-act-consolidated-en"
+      ],
+      "article_reference": "Article 113",
+      "expected_chunk_ids": [
+        "chk_bc05ba29be41014054a218bf"
+      ],
+      "expected_article_references": [
+        "Article 113"
+      ],
+      "expected_empty": false
+    },
+    {
+      "case_id": "missing-requested-version",
+      "case_type": "missing_evidence",
+      "query_text": "What does the regulation require in the 2029 consolidated version?",
+      "language": "en",
+      "as_of_date": "2029-01-01",
+      "document_version_ids": [
+        "docv_not_acquired_2029"
+      ],
+      "source_authorities": [
+        "BINDING_LEGAL_TEXT"
+      ],
+      "source_ids": [
+        "eurlex-ai-act-consolidated-en"
+      ],
+      "expected_chunk_ids": [],
+      "expected_article_references": [],
+      "expected_empty": true
+    }
+  ]
 }

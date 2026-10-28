@@ -70,6 +70,18 @@ class ValidationErrorResponse(BaseModel):
     detail: str
 
 
+class TooManyRequestsResponse(BaseModel):
+    """Sanitized response when retrieval capacity is full."""
+
+    detail: str
+
+
+class UnauthorizedResponse(BaseModel):
+    """Sanitized response for a missing or invalid bearer key."""
+
+    detail: str
+
+
 class RequestTooLargeResponse(BaseModel):
     """Sanitized response for a request exceeding the API body-size limit."""
 
@@ -136,14 +148,33 @@ def create_retrieval_router(
     service_dependency: ServiceDependency,
     *,
     tracer: Tracer | None = None,
+    auth_dependency: Callable[..., object],
+    capacity_dependency: Callable[..., object],
 ) -> APIRouter:
     """Create a router whose retrieval service is supplied by dependency injection."""
-    router = APIRouter(tags=["retrieval"])
+    router = APIRouter(
+        tags=["retrieval"],
+        dependencies=[Depends(auth_dependency), Depends(capacity_dependency)],
+    )
 
     @router.post(
         "/retrieval/search",
         response_model=RetrievalResponseBody,
         responses={
+            429: {
+                "model": TooManyRequestsResponse,
+                "description": "Retrieval capacity is currently full",
+                "headers": {
+                    "Retry-After": {
+                        "description": "Seconds to wait before retrying",
+                        "schema": {"type": "string"},
+                    }
+                },
+            },
+            401: {
+                "model": UnauthorizedResponse,
+                "description": "Missing or invalid bearer key",
+            },
             422: {
                 "model": ValidationErrorResponse,
                 "description": "Request validation failed",
@@ -160,7 +191,7 @@ def create_retrieval_router(
     )
     def search_regulations(
         body: RetrievalRequestBody,
-        service: Annotated[RegulatoryRetrievalService, Depends(service_dependency)],
+        service: RegulatoryRetrievalService = Depends(service_dependency),
     ) -> RetrievalResponse:
         try:
             request = body.to_retrieval_request()

@@ -10,9 +10,20 @@ from dataclasses import dataclass, replace
 from datetime import date, datetime
 from enum import StrEnum
 
+from .catalog import load_phase1_control_catalog
 
-ARTICLE_50_APPLIES_FROM = date(2026, 8, 2)
-ARTICLE_50_2_PREEXISTING_SYSTEM_STEPS_DEADLINE = date(2026, 12, 2)
+
+def _catalog_date(control_id: str, field: str) -> date:
+    value = getattr(load_phase1_control_catalog().get(control_id), field)
+    if value is None:
+        raise ValueError(f"control {control_id} has no {field} date")
+    return value
+
+
+ARTICLE_50_APPLIES_FROM = _catalog_date("article_50_1_provider_notice", "effective_from")
+ARTICLE_50_2_PREEXISTING_SYSTEM_STEPS_DEADLINE = _catalog_date(
+    "article_50_2_provider_marking", "transitional_steps_deadline",
+)
 
 
 class Article50FactStatus(StrEnum):

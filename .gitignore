@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.docker.example
 *.pem
 *.key
 
@@ -20,7 +21,7 @@ dist/
 htmlcov/
 
 # Local model and generated retrieval index data
-models/
+/models/
 data/index/
 
 # Local databases and editor files
@@ -39,7 +40,22 @@ docs/architecture.md
 docs/backup text.md
 
 docs/interview-notes/
+docs/interview-notes/questions.md
 ppt/
 
 notes.txt.txt
 agent.ipynb
+# Local observability secrets and Prometheus time-series data
+deployment/observability/secrets/
+data/prometheus/
+
+
+# Keep the requested implementation and interview notes versioned.
+!docs/interview-notes/
+!docs/interview-notes/questions.md
+
+# Local Streamlit smoke-test data.
+tests/.streamlit-temp/
+
+# Official source snapshots and acquisition receipts are local build inputs.
+/data/regulations/raw/

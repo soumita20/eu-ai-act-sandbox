@@ -1,0 +1,37 @@
+{
+  "schema_version": "regulatory-source-catalog-v1",
+  "catalog_id": "phase1-regulatory-sources-v1",
+  "language": "en",
+  "sources": [
+    {
+      "source_id": "eurlex-ai-act-consolidated-en",
+      "title": "Regulation (EU) 2024/1689, consolidated text as of 27 July 2026",
+      "issuing_authority": "European Parliament and Council of the European Union",
+      "source_type": "REGULATION",
+      "source_authority": "BINDING_LEGAL_TEXT",
+      "jurisdiction": "European Union",
+      "language": "en",
+      "published_on": "2024-06-13",
+      "legal_version_label": "CELEX 02024R1689-20260727",
+      "source_url": "https://publications.europa.eu/resource/cellar/b1730fb2-8f1c-11f1-9262-01aa75ed71a1.0001.03/DOC_1",
+      "local_path": "data/regulations/raw/eu-ai-act-02024R1689-20260727.html",
+      "media_type": "application/xhtml+xml",
+      "notes": "Consolidated text includes amendments through Regulation (EU) 2026/1744. The consolidated text is a documentation tool; the authentic act is published in the Official Journal. Retrieved as XHTML from the official Publications Office Cellar dissemination service using the CELEX-specific content manifestation."
+    },
+    {
+      "source_id": "eurlex-gdpr-consolidated-en",
+      "title": "Regulation (EU) 2016/679, consolidated text as of 4 May 2016",
+      "issuing_authority": "European Parliament and Council of the European Union",
+      "source_type": "REGULATION",
+      "source_authority": "BINDING_LEGAL_TEXT",
+      "jurisdiction": "European Union",
+      "language": "en",
+      "published_on": "2016-04-27",
+      "legal_version_label": "CELEX 02016R0679-20160504",
+      "source_url": "https://publications.europa.eu/resource/cellar/5f2552c2-cc45-11e6-ad7c-01aa75ed71a1.0022.03/DOC_1",
+      "local_path": "data/regulations/raw/gdpr-02016R0679-20160504.html",
+      "media_type": "application/xhtml+xml",
+      "notes": "EUR-Lex lists the consolidated version dated 4 May 2016. Recheck EUR-Lex before refreshing this source catalog. Retrieved as XHTML from the official Publications Office Cellar dissemination service using the CELEX-specific content manifestation."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+groups:
+  - name: eu-ai-act-sandbox-api
+    rules:
+      - alert: EuAiActSandboxApiTargetDown
+        expr: up{job="eu-ai-act-sandbox-api"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: eu-ai-act-sandbox-api
+        annotations:
+          summary: EU AI Act Sandbox API scrape target is down
+          description: Prometheus has been unable to scrape {{ $labels.instance }} for at least one minute.
+
+      - alert: EuAiActSandboxRetrievalCapacityRejections
+        expr: sum by (job) (increase(retrieval_capacity_rejections_total{job="eu-ai-act-sandbox-api"}[5m])) >= 3
+        for: 2m
+        labels:
+          severity: warning
+          service: eu-ai-act-sandbox-api
+        annotations:
+          summary: Repeated retrieval capacity rejections
+          description: At least three retrieval requests were rejected due to full capacity in five minutes, and this condition has persisted for two minutes.

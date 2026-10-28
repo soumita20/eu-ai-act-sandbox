@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 
+from .catalog import load_phase1_control_catalog
+
 
 class Article5Provision(StrEnum):
     """Article 5(1) points covered by the current initial control catalog."""
@@ -42,6 +44,20 @@ class Article5Disposition(StrEnum):
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
+def _require_text(field_name: str, value: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    if not value.strip():
+        raise ValueError(f"{field_name} must not be empty")
+
+
+def _validate_text_tuple(field_name: str, values: tuple[str, ...]) -> None:
+    if not isinstance(values, tuple):
+        raise TypeError(f"{field_name} must be a tuple of strings")
+    if any(not isinstance(value, str) or not value.strip() for value in values):
+        raise ValueError(f"{field_name} must contain only non-empty strings")
+
+
 @dataclass(frozen=True, slots=True)
 class Article5ProvisionDefinition:
     """Versioned catalog metadata for one Article 5(1) point."""
@@ -62,8 +78,15 @@ class Article5ProvisionDefinition:
         _validate_text_tuple("notes", self.notes)
 
 
-_GENERAL_PROHIBITIONS_EFFECTIVE_FROM = date(2025, 2, 2)
-_NEW_PROHIBITIONS_EFFECTIVE_FROM = date(2026, 12, 2)
+def _catalog_effective_from(control_id: str) -> date:
+    effective_from = load_phase1_control_catalog().get(control_id).effective_from
+    if effective_from is None:
+        raise ValueError(f"control {control_id} has no effective_from date")
+    return effective_from
+
+
+_GENERAL_PROHIBITIONS_EFFECTIVE_FROM = _catalog_effective_from("eu_ai_act_article5_5_1_a")
+_NEW_PROHIBITIONS_EFFECTIVE_FROM = _catalog_effective_from("eu_ai_act_article5_5_1_ba")
 
 ARTICLE5_PROVISIONS: tuple[Article5ProvisionDefinition, ...] = (
     Article5ProvisionDefinition(
@@ -259,17 +282,3 @@ def assess_article5_indicators(
 
 def _definition_for(provision: Article5Provision) -> Article5ProvisionDefinition:
     return next(item for item in ARTICLE5_PROVISIONS if item.provision is provision)
-
-
-def _require_text(field_name: str, value: str) -> None:
-    if not isinstance(value, str):
-        raise TypeError(f"{field_name} must be a string")
-    if not value.strip():
-        raise ValueError(f"{field_name} must not be empty")
-
-
-def _validate_text_tuple(field_name: str, values: tuple[str, ...]) -> None:
-    if not isinstance(values, tuple):
-        raise TypeError(f"{field_name} must be a tuple of strings")
-    if any(not isinstance(value, str) or not value.strip() for value in values):
-        raise ValueError(f"{field_name} must contain only non-empty strings")

@@ -1,12 +1,14 @@
 # Retrieval evaluation set
 
-`retrieval-gold-v1.json` is an intentionally empty, versioned template. Do not invent expected chunk IDs or legal references. Populate it only after the initial corpus and index are built, then have a human reviewer label each case against the exact document versions used by the index.
+`retrieval-gold-v2.json` contains nine draft candidate cases, including exact article, semantic, cross-reference, temporal, and missing-version cases. Its chunk identifiers were refreshed by matching each prior expected passage to the structurally corrected index v3. This is a mechanical migration, not independent relevance review. Do not use its metrics as a release acceptance gate until the expected passages and article references are reviewed against the exact official document versions.
 
 Use `retrieval-evaluation-v1.schema.json` for the dataset shape. Include exact article lookups, semantic questions, cross-reference queries, ambiguous cases, missing-evidence cases and temporal-applicability cases. `expected_chunk_ids` are the primary passage-level relevance labels. `expected_article_references` separately measures article-reference retrieval.
 
 The evaluator reports Recall@k, Precision@k, MRR@k, article-reference Recall@k, no-evidence accuracy and citation validity. A valid citation must resolve to the supplied source and document-version registries, match the active index version, retain a source coordinate and verify against the returned text hash. Citation validity does not measure whether a passage supports a legal claim. That requires separate human annotation.
 
-The evaluator is backend-neutral. Supply a callback that embeds each query with the index-compatible model and calls either `FileHybridRetriever` or `PgVectorHybridRetriever`. Run and record each backend separately with the index version and dataset hash.
+Run the current file backend evaluation from the repository root with `uv run python scripts/evaluate_retrieval.py --device cuda:0`. Use `--device cpu` for CPU-only hosts. The script verifies the packaged index, uses its exact embedding identity and document versions, and writes `data/evaluation-sets/retrieval-evaluation-report-v2.json`. CI rebuilds and evaluates on CPU and uploads the index plus both provenance and evaluation reports as a 14-day artifact. The evaluator is backend-neutral. Each backend must be recorded separately with the index version and dataset hash.
+
+The first draft run against index v1 produced Recall@3 1.00, Precision@3 0.417, MRR@3 0.938, citation validity 1.00 across 64 citations, and no-evidence accuracy 1.00 across nine cases. Those metrics are historical only. Index v3 now uses corrected structural references and exact article filtering. The mechanically refreshed v2 candidate set currently reports Recall@3 0.917, Precision@3 0.333, MRR@3 1.00, citation validity 1.00 across 28 citations, and no-evidence accuracy 1.00 across nine cases. Because the labels were carried forward by passage matching and have not been independently reviewed, these metrics are diagnostic only and cannot gate a release. The missing-evidence case confirms that an unacquired document version is not silently replaced with the available version; it does not test semantic abstention for arbitrary unsupported questions.
 
 ## Shared retrieval service
 

@@ -1,0 +1,146 @@
+name: Phase 1 quality gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  recorded-fixture-and-quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
+        env:
+          POSTGRES_DB: eu_ai_act_sandbox
+          POSTGRES_USER: sandbox
+          POSTGRES_PASSWORD: sandbox-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sandbox -d eu_ai_act_sandbox"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://sandbox:sandbox-ci-only@127.0.0.1:5432/eu_ai_act_sandbox
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install locked Phase 1 dependencies
+        run: uv sync --locked --extra api --extra workflow --extra test --extra quality --extra ui --extra embeddings --extra postgres
+      - name: Lint source, tests, and Demo UI
+        run: uv run --locked ruff check src tests ui scripts
+      - name: Run unit and integration tests
+        run: uv run --locked python -m unittest discover -s tests -v
+      - name: Verify packaged replay fixtures
+        run: uv run --locked python -m unittest tests.integration.test_replay_catalog -v
+      - name: Acquire official regulatory source snapshots
+        run: uv run --locked python scripts/acquire_regulatory_sources.py
+      - name: Download pinned local embedding model
+        run: >-
+          uv run --locked python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='sentence-transformers/all-MiniLM-L6-v2', revision='b8903db39f65d93ae28d49a37c4f3fa90c5f94e0', local_dir='models/all-MiniLM-L6-v2', allow_patterns=['1_Pooling/config.json','config.json','config_sentence_transformers.json','model.safetensors','modules.json','sentence_bert_config.json','special_tokens_map.json','tokenizer.json','tokenizer_config.json','vocab.txt'])"
+      - name: Build immutable Demo retrieval index
+        run: >-
+          uv run --locked python scripts/build_regulatory_index.py
+          --model-path models/all-MiniLM-L6-v2
+          --model-id sentence-transformers/all-MiniLM-L6-v2
+          --model-revision b8903db39f65d93ae28d49a37c4f3fa90c5f94e0
+          --output data/index/phase1-regulatory-index-v3.json
+          --report data/index/phase1-regulatory-index-build-v3.json
+          --device cpu
+      - name: Apply database migrations to a fresh PostgreSQL database
+        run: uv run --locked python scripts/migrate_database.py
+      - name: Publish verified index to PostgreSQL plus pgvector
+        run: uv run --locked python scripts/publish_pgvector_index.py --index data/index/phase1-regulatory-index-v3.json
+      - name: Verify PostgreSQL migration, publication, and retrieval contracts
+        env:
+          RUN_POSTGRES_INTEGRATION: "1"
+        run: >-
+          uv run --locked python -m unittest
+          tests.integration.test_postgres_retrieval
+          tests.integration.test_postgres_assessments -v
+      - name: Evaluate PostgreSQL hybrid retrieval
+        run: uv run --locked python scripts/evaluate_postgres_retrieval.py --device cpu --output data/evaluation-sets/retrieval-postgres-report-v1.json
+      - name: Evaluate Demo retrieval candidate set
+        run: uv run --locked python scripts/evaluate_retrieval.py --device cpu
+      - name: Validate Local Compose configuration
+        env:
+          API_KEY: ci-compose-api-key-do-not-use-outside-ci
+          REVIEWER_API_KEY: ci-compose-reviewer-key-do-not-use-outside-ci
+          POSTGRES_PASSWORD: ci-compose-database-password
+        run: |
+          docker compose config -q
+          docker compose -f docker-compose.yml -f docker-compose.gpu.yml config -q
+      - name: Build and smoke test the Local Compose stack
+        env:
+          API_KEY: ci-compose-api-key-do-not-use-outside-ci
+          REVIEWER_API_KEY: ci-compose-reviewer-key-do-not-use-outside-ci
+          REVIEWER_ID: ci-reviewer
+          POSTGRES_PASSWORD: ci-compose-database-password
+          POSTGRES_PORT: "15432"
+          API_PORT: "18000"
+          REVIEWER_UI_PORT: "18502"
+          EMBEDDING_DEVICE: cpu
+          EMBEDDING_MODEL_ID: sentence-transformers/all-MiniLM-L6-v2
+          EMBEDDING_MODEL_REVISION: b8903db39f65d93ae28d49a37c4f3fa90c5f94e0
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              docker compose ps
+              docker compose logs --no-color
+            fi
+            docker compose down -v
+          }
+          trap cleanup EXIT
+
+          docker compose up --build -d
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:18000/health/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Local API did not become ready"
+            exit 1
+          fi
+
+          uv run --locked python -c "import json; from fastapi.encoders import jsonable_encoder; from tests.assessment_helpers import make_assessment_request; print(json.dumps(jsonable_encoder(make_assessment_request())))" > "$RUNNER_TEMP/assessment-request.json"
+          assessment=$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $API_KEY" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$RUNNER_TEMP/assessment-request.json" \
+            http://127.0.0.1:18000/api/v1/assessments)
+          assessment_id=$(python -c 'import json,sys; print(json.load(sys.stdin)["assessment_id"])' <<< "$assessment")
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $API_KEY" \
+            "http://127.0.0.1:18000/api/v1/assessments/$assessment_id" >/dev/null
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $REVIEWER_API_KEY" \
+            http://127.0.0.1:18000/api/v1/reviews/pending >/dev/null
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18502/_stcore/health >/dev/null
+      - name: Upload validated Demo retrieval artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-demo-retrieval-${{ github.sha }}
+          path: |
+            data/index/phase1-regulatory-index-v3.json
+            data/index/phase1-regulatory-index-build-v3.json
+            data/evaluation-sets/retrieval-evaluation-report-v2.json
+            data/evaluation-sets/retrieval-postgres-report-v1.json
+          if-no-files-found: error
+          retention-days: 14

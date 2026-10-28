@@ -1,5 +1,6 @@
 """Compliance scope, control definitions, and result types."""
 
+from .catalog import CatalogControl, ControlCatalog, load_phase1_control_catalog
 from .definitions import (
     ControlDefinition,
     EvaluationMethod,
@@ -235,6 +236,9 @@ from .scope import (
 )
 
 __all__ = [
+    "CatalogControl",
+    "ControlCatalog",
+    "load_phase1_control_catalog",
     "AssessmentMode",
     "Article3AISystemAssessment",
     "Article3AISystemDisposition",

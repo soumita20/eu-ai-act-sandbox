@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 from .acquisition import AcquiredDocument
 
 
-_ARTICLE_PATTERN = re.compile(r"\bArticle\s+(\d+[a-z]?)\b", re.IGNORECASE)
+_STRUCTURAL_REFERENCE_PATTERN = re.compile(r"^(Article \d+[a-z]?|Annex [IVXLCDM]+)$", re.IGNORECASE)
 _LEGAL_UNIT_PATTERN = re.compile(
     r"^\s*((?:Article\s+\d+[a-z]?(?:\(\d+\))?|Annex\s+[IVXLCDM]+|\d+(?:\.\d+)*\.?))\b",
     re.IGNORECASE,
@@ -52,7 +52,7 @@ def parse_acquired_document(document: AcquiredDocument) -> ParsedDocument:
     if document.media_type == "application/pdf":
         raw_sections = _parse_pdf(document.content)
         parser_name, parser_version = _pdf_parser_identity()
-    elif document.media_type == "text/html":
+    elif document.media_type in {"text/html", "application/xhtml+xml"}:
         raw_sections = _parse_html(document.content)
         parser_name, parser_version = "stdlib.html.parser", "1"
     elif document.media_type in {"application/xml", "text/xml"}:
@@ -172,11 +172,11 @@ def _normalize_sections(raw_sections: list[tuple[str, str, str]]) -> tuple[Parse
             if not block:
                 continue
             reference_match = _LEGAL_UNIT_PATTERN.match(block)
-            article_match = _ARTICLE_PATTERN.search(block)
             if reference_match:
                 current_heading = block[:240]
-            if article_match:
-                current_article = f"Article {article_match.group(1)}"
+            structural_reference = _STRUCTURAL_REFERENCE_PATTERN.fullmatch(block)
+            if structural_reference:
+                current_article = structural_reference.group(1)
             digest = sha256(f"{coordinate}\0{block}".encode("utf-8")).hexdigest()[:16]
             normalized.append(ParsedSection(
                 section_id=f"sec_{digest}",

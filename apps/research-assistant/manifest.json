@@ -1,0 +1,9 @@
+{
+  "application_id": "research-assistant",
+  "display_name": "Research Assistant",
+  "adapter": "eu_ai_act_sandbox.adapters.first_party.ResearchAssistant",
+  "version": "1.0.0",
+  "data_profile": "synthetic_only",
+  "execution_mode": "in_process_allowlisted",
+  "network_access": false
+}

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 
+from .catalog import load_phase1_control_catalog
+
 
 class Article6FactStatus(StrEnum):
     """Epistemic status for one classification fact."""
@@ -157,8 +159,15 @@ class Article6Assessment:
     limitations: tuple[str, ...]
 
 
-ANNEX_I_HIGH_RISK_OBLIGATIONS_APPLY_FROM = date(2028, 8, 2)
-ANNEX_III_HIGH_RISK_OBLIGATIONS_APPLY_FROM = date(2027, 12, 2)
+def _catalog_effective_from(control_id: str) -> date:
+    effective_from = load_phase1_control_catalog().get(control_id).effective_from
+    if effective_from is None:
+        raise ValueError(f"control {control_id} has no effective_from date")
+    return effective_from
+
+
+ANNEX_I_HIGH_RISK_OBLIGATIONS_APPLY_FROM = _catalog_effective_from("article_6_1_annex_i")
+ANNEX_III_HIGH_RISK_OBLIGATIONS_APPLY_FROM = _catalog_effective_from("article_6_2_annex_iii")
 
 
 def assess_article6(

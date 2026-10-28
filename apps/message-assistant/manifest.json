@@ -1,0 +1,9 @@
+{
+  "application_id": "message-assistant",
+  "display_name": "Message Assistant",
+  "adapter": "eu_ai_act_sandbox.adapters.first_party.MessageAssistant",
+  "version": "1.0.0",
+  "data_profile": "synthetic_only",
+  "execution_mode": "in_process_allowlisted",
+  "network_access": false
+}

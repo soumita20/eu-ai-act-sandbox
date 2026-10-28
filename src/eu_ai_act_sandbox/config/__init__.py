@@ -1,5 +1,9 @@
 """Runtime configuration for application entry points."""
 
-from .api_settings import ApiSettings, RetrievalBackendName
+from .api_settings import (
+    ApiSettings,
+    AssessmentPersistenceBackendName,
+    RetrievalBackendName,
+)
 
-__all__ = ["ApiSettings", "RetrievalBackendName"]
+__all__ = ["ApiSettings", "AssessmentPersistenceBackendName", "RetrievalBackendName"]

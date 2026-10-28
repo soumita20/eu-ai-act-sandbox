@@ -1,3 +1,63 @@
-PROJECT NAME: EU AI ACT and Compliance Sandbox
+# EU AI Act Guardrail & Compliance Sandbox
 
-Problem: Enterprises using AI applications in the EU need to adhere to the AI Act before it runs in production. 
+A portfolio project demonstrating how an AI application can be screened against selected EU AI Act and GDPR indicators with deterministic controls, regulatory evidence retrieval, reproducible assessments, and bounded adversarial evaluation.
+
+> **Important:** This is a technical screening demonstration for human review. It is not legal advice, a legal determination, or a compliance certification.
+
+## Try the Demo
+
+The Streamlit app uses synthetic assessment facts and two registered first-party examples: a message assistant and a research assistant. On **Run assessment**, choose one of four entries from the application or scenario menu:
+
+| Scenario | Demonstration | Expected result |
+| --- | --- | --- |
+| Message Assistant (baseline) or Research Assistant (baseline) | No Article 5 or Article 6 indicator is declared | Baseline screening outcome |
+| Social Scoring Example | A synthetic Article 5(1)(c) indicator is supplied | `REVIEW_REQUIRED`; overall risk remains undetermined |
+| Employment Screening Example | Synthetic Annex III employment and profiling facts are supplied | High-risk pathway indicator and `HIGH_RISK` tier |
+
+The Article 5 screen does not label a system legally prohibited from a pre-filled example. The Article 6 result is a preliminary pathway indicator, not a final legal classification. The scenarios only change synthetic assessment facts. They do not execute prohibited behavior or accept real-person data.
+
+### Run locally
+
+Requirements: Python 3.14, `uv`, and the local embedding model and verified regulatory index. The model and index are generated artifacts and are intentionally excluded from Git. Prepare them by following [the regulatory corpus guide](docs/regulatory-corpus.md).
+
+```powershell
+uv sync --locked --extra ui --extra workflow --extra embeddings
+uv run streamlit run ui/app.py --server.address 127.0.0.1
+```
+
+Open the local URL printed by Streamlit. Select a baseline application or one of the two regulatory scenarios, then inspect **History** and **Replay** to review stored and integrity-checked assessments.
+
+## What it demonstrates
+
+- Independent, deterministic screens for AI Act Articles 2, 3, 5, 6, and 50, and selected GDPR indicators.
+- Assessment dates and temporal applicability recorded with each result.
+- Hybrid semantic and lexical retrieval over a verified local regulatory index, with citations, source links, and passage hashes.
+- A bounded red-team loop over stored synthetic cases and registered first-party adapters.
+- Explicit incomplete or unavailable retrieval states. Retrieved text supports review and does not decide compliance.
+- Bounded local assessment history and hash-checked replay fixtures.
+
+## Design
+
+The project starts as a modular Python application. Compliance controls, assessment workflow, retrieval, persistence, security, and UI concerns are separated into replaceable modules. The Demo profile uses a read-only file index and bounded local history. It disables reviewer and administrative functions, file uploads, and arbitrary code execution.
+
+See [the approved architecture](docs/architecture_updated.md), [retrieval evaluation approach](docs/retrieval-evaluation.md), and [interview notes](docs/interview-notes/questions.md) for more detail.
+
+## Quality checks
+
+Install all optional dependencies before running the complete repository checks:
+
+```powershell
+uv sync --locked --all-extras
+uv run --locked ruff check src tests ui scripts
+uv run --locked python -m unittest discover -s tests -v
+```
+
+The test suite includes deterministic control and workflow checks, API and retrieval contracts, replay integrity, and stored red-team case coverage. Generated reports and model/index artifacts are local build outputs.
+
+## Boundaries and limitations
+
+- All interactive examples use synthetic facts and deterministic first-party adapters.
+- A positive Article 5 indicator routes to review. It does not prove prohibited conduct occurred.
+- An Article 6 pathway result does not replace the provider's legal assessment.
+- Retrieval quality depends on the pinned corpus, model, and evaluation set. Citations must still be reviewed in context.
+- Only selected provisions are in scope. Later-phase controls and arbitrary third-party code execution are excluded.

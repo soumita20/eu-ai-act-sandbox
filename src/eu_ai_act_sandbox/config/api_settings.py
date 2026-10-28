@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from typing import Literal
 
 
 RetrievalBackendName = Literal["file", "postgres"]
+AssessmentPersistenceBackendName = Literal["disabled", "postgres"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +22,11 @@ class ApiSettings:
     embedding_device: str | None
     index_artifact_path: Path
     database_url: str | None
+    api_key: str = field(repr=False)
+    assessment_persistence_backend: AssessmentPersistenceBackendName = "disabled"
+    reviewer_id: str | None = None
+    reviewer_api_key: str | None = field(default=None, repr=False)
+    api_max_concurrent_retrievals: int = 1
     postgres_connect_timeout_seconds: int = 3
     postgres_statement_timeout_ms: int = 10_000
 
@@ -40,6 +46,43 @@ class ApiSettings:
         database_url = values.get("DATABASE_URL", "").strip() or None
         if backend_value == "postgres" and database_url is None:
             raise ValueError("DATABASE_URL is required when RETRIEVAL_BACKEND=postgres")
+        persistence_value = values.get("ASSESSMENT_PERSISTENCE_BACKEND", "disabled").strip().lower()
+        if persistence_value not in {"disabled", "postgres"}:
+            raise ValueError("ASSESSMENT_PERSISTENCE_BACKEND must be 'disabled' or 'postgres'")
+        if persistence_value == "postgres" and database_url is None:
+            raise ValueError("DATABASE_URL is required when ASSESSMENT_PERSISTENCE_BACKEND=postgres")
+        api_key = values.get("API_KEY", "").strip()
+        if len(api_key) < 32:
+            raise ValueError("API_KEY must be set to a secret containing at least 32 characters")
+        reviewer_id = values.get("REVIEWER_ID", "").strip() or None
+        reviewer_api_key = values.get("REVIEWER_API_KEY", "").strip() or None
+        if (reviewer_id is None) != (reviewer_api_key is None):
+            raise ValueError("REVIEWER_ID and REVIEWER_API_KEY must be configured together")
+        if persistence_value == "postgres" and reviewer_id is None:
+            raise ValueError(
+                "REVIEWER_ID and REVIEWER_API_KEY are required when assessment persistence is enabled"
+            )
+        if reviewer_id is not None:
+            if len(reviewer_id) > 128:
+                raise ValueError("REVIEWER_ID must not exceed 128 characters")
+            if any(
+                not (character.isascii() and (character.isalnum() or character in "._@-"))
+                for character in reviewer_id
+            ):
+                raise ValueError("REVIEWER_ID may contain only letters, digits, dot, underscore, @, and hyphen")
+            if reviewer_api_key is None or len(reviewer_api_key) < 32:
+                raise ValueError("REVIEWER_API_KEY must contain at least 32 characters")
+            if reviewer_api_key == api_key:
+                raise ValueError("REVIEWER_API_KEY must differ from API_KEY")
+            if persistence_value != "postgres":
+                raise ValueError("reviewer credentials require PostgreSQL assessment persistence")
+        max_concurrent_retrievals = _bounded_integer(
+            values,
+            "API_MAX_CONCURRENT_RETRIEVALS",
+            default=1,
+            minimum=1,
+            maximum=8,
+        )
         connect_timeout = _bounded_integer(
             values, "POSTGRES_CONNECT_TIMEOUT_SECONDS", default=3, minimum=1, maximum=60
         )
@@ -54,9 +97,14 @@ class ApiSettings:
             embedding_model_revision=model_revision,
             embedding_device=device,
             index_artifact_path=Path(
-                values.get("RETRIEVAL_INDEX_PATH", "data/index/regulatory-index.json")
+                values.get("RETRIEVAL_INDEX_PATH", "data/index/phase1-regulatory-index-v3.json")
             ).expanduser(),
             database_url=database_url,
+            api_key=api_key,
+            assessment_persistence_backend=persistence_value,
+            reviewer_id=reviewer_id,
+            reviewer_api_key=reviewer_api_key,
+            api_max_concurrent_retrievals=max_concurrent_retrievals,
             postgres_connect_timeout_seconds=connect_timeout,
             postgres_statement_timeout_ms=statement_timeout,
         )

@@ -161,9 +161,15 @@ class FileIndexStore:
             ) as temp_file:
                 temp_file.write(artifact_bytes)
                 temp_path = Path(temp_file.name)
-            # Same-filesystem hard-link creation fails if another publisher won the race.
-            os.link(temp_path, self.artifact_path)
-            temp_path.unlink()
+            # Windows blocks hard-link creation in some managed environments.
+            # os.rename is atomic and refuses an existing destination on Windows.
+            if os.name == "nt":
+                os.rename(temp_path, self.artifact_path)
+                temp_path = None
+            else:
+                # Same-filesystem hard-link creation fails if another publisher won the race.
+                os.link(temp_path, self.artifact_path)
+                temp_path.unlink()
         finally:
             if temp_path is not None and temp_path.exists():
                 temp_path.unlink()
@@ -269,7 +275,8 @@ class PgVectorIndexStore:
                 record["embedding_library_version"], record["execution_device"],
                 _vector_literal(record["embedding"]),
             ) for record in records]
-            self.connection.executemany(insert_sql, values)
+            with self.connection.cursor() as cursor:
+                cursor.executemany(insert_sql, values)
             stored_count = self.connection.execute(
                 "SELECT count(*) FROM regulatory_chunks WHERE index_version = %s",
                 (manifest.index_version,),

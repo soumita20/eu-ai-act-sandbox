@@ -157,6 +157,9 @@ class PgVectorHybridRetriever:
         manifest_value = json.loads(row[0])
         manifest = _manifest_from_json(manifest_value)
         _validate_query_against_manifest(query, query_embedding, manifest)
+        # HNSW applies metadata filters after its approximate scan. Iterative
+        # scanning keeps narrowly scoped legal queries from underfilling results.
+        self.connection.execute("SET LOCAL hnsw.iterative_scan = strict_order")
         candidate_limit = query.top_k * query.candidate_multiplier
         where_sql, filter_params = _postgres_filters(query, query_embedding)
         vector_literal = "[" + ",".join(format(value, ".9g") for value in query_embedding.values) + "]"
@@ -178,12 +181,12 @@ class PgVectorHybridRetriever:
             lexical_rows = self.connection.execute(
                 base_select + f""", ts_rank_cd(to_tsvector('simple', c.content),
                 websearch_to_tsquery('simple', %s)) +
-                CASE WHEN %s IS NOT NULL AND lower(coalesce(c.article_reference, '')) = lower(%s)
+                CASE WHEN %s::text IS NOT NULL AND lower(coalesce(c.article_reference, '')) = lower(%s)
                      THEN 1.0 ELSE 0.0 END AS lexical_score
             FROM regulatory_chunks c JOIN regulatory_index_versions v USING (index_version)
             WHERE v.publication_status = 'PUBLISHED' AND {where_sql}
                 AND (to_tsvector('simple', c.content) @@ websearch_to_tsquery('simple', %s)
-                     OR (%s IS NOT NULL AND lower(coalesce(c.article_reference, '')) = lower(%s)))
+                     OR (%s::text IS NOT NULL AND lower(coalesce(c.article_reference, '')) = lower(%s)))
             ORDER BY lexical_score DESC, c.chunk_index ASC LIMIT %s""",
                 (query.query_text, query.article_reference, query.article_reference, *filter_params,
                  query.query_text, query.article_reference, query.article_reference, candidate_limit),
@@ -233,6 +236,9 @@ def _postgres_filters(query: RetrievalQuery, embedding: QueryEmbedding) -> tuple
     if query.source_ids:
         clauses.append("c.source_id = ANY(%s)")
         params.append(list(query.source_ids))
+    if query.article_reference:
+        clauses.append("lower(coalesce(c.article_reference, '')) = lower(%s)")
+        params.append(query.article_reference)
     if query.document_version_ids:
         clauses.append("c.document_version_id = ANY(%s)")
         params.append(list(query.document_version_ids))
@@ -260,6 +266,8 @@ def _record_is_in_scope(record: dict[str, Any], query: RetrievalQuery) -> bool:
     if record["language"].lower() != query.language.lower():
         return False
     if query.source_ids and record["source_id"] not in query.source_ids:
+        return False
+    if query.article_reference and (record.get("article_reference") or "").casefold() != query.article_reference.casefold():
         return False
     if query.document_version_ids and record["document_version_id"] not in query.document_version_ids:
         return False
