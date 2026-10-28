@@ -291,6 +291,7 @@ name = "eu-ai-act-sandbox"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "langgraph" },
     { name = "pydantic" },
     { name = "pypdf" },
 ]
@@ -325,16 +326,13 @@ ui = [
     { name = "httpx" },
     { name = "streamlit" },
 ]
-workflow = [
-    { name = "langgraph" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115,<1" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.27,<1" },
     { name = "httpx", marker = "extra == 'ui'", specifier = ">=0.27,<1" },
-    { name = "langgraph", marker = "extra == 'workflow'", specifier = ">=1.2,<2" },
+    { name = "langgraph", specifier = ">=1.2,<2" },
     { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.45,<2" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'otlp'", specifier = ">=1.45,<2" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'tracing'", specifier = ">=0.66b1,<0.67" },
@@ -348,7 +346,7 @@ requires-dist = [
     { name = "streamlit", marker = "extra == 'ui'", specifier = ">=1.66.1,<2" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.34,<1" },
 ]
-provides-extras = ["embeddings", "postgres", "api", "test", "tracing", "workflow", "ui", "quality", "otlp"]
+provides-extras = ["embeddings", "postgres", "api", "test", "tracing", "ui", "quality", "otlp"]
 
 [[package]]
 name = "fastapi"
