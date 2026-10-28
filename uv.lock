@@ -291,6 +291,7 @@ name = "eu-ai-act-sandbox"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "pydantic" },
     { name = "pypdf" },
 ]
 
@@ -340,6 +341,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.45,<2" },
     { name = "prometheus-client", marker = "extra == 'api'", specifier = ">=0.21,<1" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2,<4" },
+    { name = "pydantic", specifier = ">=2,<3" },
     { name = "pypdf", specifier = ">=6,<7" },
     { name = "ruff", marker = "extra == 'quality'", specifier = ">=0.14,<1" },
     { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=6,<7" },
