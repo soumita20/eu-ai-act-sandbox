@@ -23,4 +23,18 @@ response = retrieval_service.retrieve_request(request)
 
 This layer does not depend on FastAPI, Streamlit, or LangGraph. Those components can translate their input formats into `RetrievalRequest` and call the same service.
 
+## Experimental question answering
+
+The application-facing question-answering flow is intended to work as follows:
+
+1. The caller provides a user question and the assessment to explain.
+2. The application builds a JSON-safe assessment context from fields that actually exist on the assessment object. It must not assume an `assessment.context` attribute exists. For example, serialize supported model fields with the model's JSON serialization method, excluding large or unnecessary fields such as retrieved evidence when appropriate.
+3. Retrieval uses the question, the assessment's applicable date, and explicitly resolved index and document versions. Retrieval must not silently choose a legal snapshot.
+4. The answer generator receives the question, the assessment context, and the retrieved passages.
+5. The answer should cite the passages supporting its explanation. If the retrieved evidence does not support an answer, it should say that the evidence is insufficient.
+6. Generated text is explanatory only. It must not change assessment status, risk tier, or deterministic control results.
+
+This answer-generation path is experimental and depends on the configured inference backend and its availability. Treat retrieval and inference failures as unavailable evidence or unavailable answering; do not present an unsupported generated answer as a compliance result. Confirm the current UI's failure-handling behavior in code before describing graceful degradation as implemented.
+
+This document describes the intended boundary and flow. It does not establish that every integration step or failure mode is currently implemented.
 

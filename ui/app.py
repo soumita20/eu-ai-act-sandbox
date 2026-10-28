@@ -18,11 +18,10 @@ from eu_ai_act_sandbox.persistence import DemoAssessmentStore
 from eu_ai_act_sandbox.replay import ReplayCatalog
 from eu_ai_act_sandbox.retrieval import (
     FileHybridRetriever, FileIndexStore, FileRetrievalBackend,
-    LocalSentenceTransformerEmbedder, RegulatoryRetrievalService,
+    LocalSentenceTransformerEmbedder, RegulatoryRetrievalService, RetrievalRequest, SourceAuthority, PublishedFileIndex
 )
 from eu_ai_act_sandbox.retrieval.answering import (
-    answer_from_evidence,
-    build_local_chat_model,
+    answer_from_evidence, build_ollama_cloud_model, build_local_chat_model
 )
 
 
@@ -63,7 +62,7 @@ def get_store() -> DemoAssessmentStore:
 
 
 @st.cache_resource
-def get_retrieval_runtime() -> tuple[RegulatoryRetrievalService, object]:
+def get_retrieval_runtime() -> tuple[RegulatoryRetrievalService, PublishedFileIndex]:
     """Load the verified index and pinned model once per Demo process."""
     index_path = Path(os.environ.get("RETRIEVAL_INDEX_PATH", "data/index/phase1-regulatory-index-v3.json"))
     index = FileIndexStore(index_path).load_verified()
@@ -104,6 +103,25 @@ def get_source_urls() -> dict[str, str]:
     catalog = json.loads((ROOT / "configs" / "regulatory-sources-v1.json").read_text(encoding="utf-8"))
     return {item["source_id"]: item["source_url"] for item in catalog["sources"]}
 
+def build_assessment_context(
+    assessment: AssessmentResponse,
+) -> dict[str, object]:
+    payload = assessment.model_dump(mode="json", exclude={"regulatory_evidence"})
+    control_results = {
+        name: value
+        for name, value in payload.items()
+        if name.endswith("_result") and value is not None
+    }
+    return {
+        "application_profile": payload["application_profile"],
+        "assessment_summary": {
+            name: payload[name]
+            for name in ("as_of_date", "assessment_mode", "status", "risk_tier")
+        },
+        "control_results": control_results,
+        "control_status": payload["control_status"],
+        "limitations": payload["limitations"],
+    }
 
 def show_assessment(result: AssessmentResponse) -> None:
     status_column, tier_column, date_column = st.columns(3)
@@ -250,34 +268,128 @@ if page == "Run assessment":
         st.success("Assessment completed and recorded in the bounded local Demo history.")
     if "last_assessment" in st.session_state:
         show_assessment(st.session_state["last_assessment"])
-        if os.environ.get("ENABLE_LOCAL_OLLAMA", "").strip() == "1":
-            st.subheader("Ask about retrieved evidence")
+        st.subheader("Ask about retrieved evidence")
 
-            with st.form("local_ollama_question"):
-                question = st.text_input(
-                    "Question",
-                    max_chars=1_000,
-                    placeholder="What does the retrieved evidence say about this assessment?",
-                )
-                submitted = st.form_submit_button("Generate evidence-grounded answer")
+        source_options = {
+            "EU AI Act": "eurlex-ai-act-consolidated-en",
+            "GDPR": "eurlex-gdpr-consolidated-en",
+        }
 
-            if submitted:
+        with st.form("local_ollama_question"):
+            question = st.text_input(
+                "Question",
+                max_chars=1_000,
+                placeholder="What does the retrieved evidence say about this assessment?",
+            )
+
+            selected_source_label = st.selectbox(
+                "Legal source",
+                options=tuple(source_options),
+            )
+
+            provision = st.text_input(
+                "Article or annex (optional)",
+                max_chars=80,
+                placeholder="For example: Article 6 or Annex III",
+                help="Use the provision label shown in the index. Put subsection details in your question.",
+            )
+            submitted = st.form_submit_button("Generate evidence-grounded answer")
+
+        if submitted:
+            try:
+                if not question.strip():
+                    raise ValueError("Enter a question.")
+
                 assessment = st.session_state["last_assessment"]
-                passages = tuple(
-                    passage
-                    for control in assessment.regulatory_evidence
-                    for passage in control.evidence
+                source_id = source_options[selected_source_label]
+
+                backend = os.environ.get("INFERENCE_BACKEND", "cloud").strip().lower()
+                if backend == "local":
+                    model = build_local_chat_model()
+                elif backend == "cloud":
+                    try:
+                        api_key = str(st.secrets["OLLAMA_API_KEY"])
+                    except Exception:
+                        api_key = os.environ.get("OLLAMA_API_KEY", "")
+
+                    if not api_key.strip():
+                        raise RuntimeError(
+                            "Set OLLAMA_API_KEY in Streamlit Secrets or the local environment."
+                        )
+                    model = build_ollama_cloud_model(api_key)
+                else:
+                    raise ValueError("INFERENCE_BACKEND must be 'local' or 'cloud'.")
+
+                service, index = get_retrieval_runtime()
+
+                source_version_ids = tuple(sorted({
+                    record["document_version_id"]
+                    for record in index.records
+                    if record["source_id"] == source_id
+                }))
+                if len(source_version_ids) != 1:
+                    raise RuntimeError(
+                        f"{selected_source_label} must resolve to exactly one indexed "
+                        "document version for this Demo. Add explicit version selection "
+                        "when the index contains multiple versions."
+                    )
+
+                article_reference = provision.strip() or None
+
+                retrieval = service.retrieve_request(
+                    RetrievalRequest(
+                        index_version=index.manifest.index_version,
+                        query_text=question.strip(),
+                        language="en",
+                        as_of_date=assessment.as_of_date,
+                        document_version_ids=source_version_ids,
+                        source_authorities=(SourceAuthority.BINDING_LEGAL_TEXT,),
+                        source_ids=(source_id,),
+                        article_reference=article_reference,
+                        top_k=6,
+                    )
                 )
-                try:
+
+                if not retrieval.evidence:
+                    st.warning(
+                        "No passages were retrieved for that source and provision. "
+                        "Try removing the provision filter or rephrasing the question."
+                    )
+                else:
+                    assessment_context = build_assessment_context(assessment)
                     answer = answer_from_evidence(
-                        question,
-                        passages,
-                        model=build_local_chat_model(),
+                        question.strip(),
+                        retrieval.evidence,
+                        model=model,
+                        assessment_context=assessment_context,
                     )
                     st.markdown(answer)
-                except Exception as exc:
-                    st.error(f"Local Ollama request failed ({type(exc).__name__}): {exc}")
 
+                    source_urls = get_source_urls()
+                    seen_chunk_ids = set()
+                    displayed_evidence = []
+                    for item in retrieval.evidence:
+                        if item.chunk_id in seen_chunk_ids:
+                            continue
+                        seen_chunk_ids.add(item.chunk_id)
+                        displayed_evidence.append(item)
+                        if len(displayed_evidence) == 6:
+                            break
+
+                    with st.expander("Review retrieved passages and citation labels"):
+                        for number, item in enumerate(displayed_evidence, start=1):
+                            citation = item.citation
+                            st.markdown(
+                                f"**[E{number}] {citation.source_id}** "
+                                f"· {citation.article_reference or 'Provision not labeled'}"
+                            )
+                            source_url = source_urls.get(citation.source_id)
+                            if source_url:
+                                st.markdown(f"[Open source]({source_url})")
+                            st.write(item.text)
+
+            except Exception as exc:
+                st.error(f"Answer generation failed ({type(exc).__name__}): {exc}")
 elif page == "History":
     st.subheader("Recent local Demo assessments")
     records = store.list_recent(limit=20)

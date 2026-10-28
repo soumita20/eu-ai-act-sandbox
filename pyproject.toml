@@ -7,6 +7,7 @@ name = "eu-ai-act-sandbox"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "langchain-openai>=1.7.3",
     "langgraph>=1.2,<2",
     "pydantic>=2,<3",
     "pypdf>=6,<7",
@@ -35,6 +36,7 @@ tracing = [
     "opentelemetry-instrumentation-fastapi>=0.66b1,<0.67",
 ]
 ui = ["streamlit>=1.66.1,<2", "httpx>=0.27,<1"]
+
 quality = ["ruff>=0.14,<1"]
 otlp = [
     "opentelemetry-exporter-otlp-proto-http>=1.45,<2",

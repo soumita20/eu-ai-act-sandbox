@@ -60,3 +60,5 @@ tests/.streamlit-temp/
 
 # Official source snapshots and acquisition receipts are local build inputs.
 /data/regulations/raw/
+
+.streamlit/secrets.toml

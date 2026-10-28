@@ -42,11 +42,19 @@ The live app is available at [eu-ai-act-sandbox-app.streamlit.app](https://eu-ai
 - Explicit incomplete or unavailable retrieval states. Retrieved text supports review and does not decide compliance.
 - Bounded local assessment history and hash-checked replay fixtures.
 
+## Retrieval and answer generation
+
+The application retrieves passages from a versioned regulatory corpus using semantic and lexical search. Retrieved passages provide evidence and citations for human review. Retrieval does not make compliance decisions.
+
+The application includes an experimental, evidence-grounded answer-generation path. When available and configured, an inference model can receive the user's question, assessment facts, and retrieved passages to draft an explanation. Deterministic controls remain authoritative: generated text cannot change an assessment status, risk tier, or control result. Answer generation is not a legal determination.
+
+The demo uses synthetic assessment facts. It is a technical screening aid, not legal advice or a compliance certification.
+
 ## Design
 
 The project starts as a modular Python application. Compliance controls, assessment workflow, retrieval, persistence, security, and UI concerns are separated into replaceable modules. The Demo profile uses a read-only file index and bounded local history. It disables reviewer and administrative functions, file uploads, and arbitrary code execution.
 
-See [the approved architecture](docs/architecture_updated.md), [retrieval evaluation approach](docs/retrieval-evaluation.md), and [interview notes](docs/interview-notes/questions.md) for more detail.
+See [the approved architecture](docs/architecture_updated.md) and [retrieval evaluation approach](docs/retrieval-evaluation.md) for more detail.
 
 ## Quality checks
 
@@ -67,3 +75,4 @@ The test suite includes deterministic control and workflow checks, API and retri
 - An Article 6 pathway result does not replace the provider's legal assessment.
 - Retrieval quality depends on the pinned corpus, model, and evaluation set. Citations must still be reviewed in context.
 - Only selected provisions are in scope. Later-phase controls and arbitrary third-party code execution are excluded.
+- Answer generation depends on the configured inference backend and its availability. Its legal accuracy has not been validated; review generated explanations and citations against the source text.
