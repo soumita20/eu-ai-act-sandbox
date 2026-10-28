@@ -4,7 +4,7 @@ A portfolio project demonstrating how an AI application can be screened against 
 
 > **Important:** This is a technical screening demonstration for human review. It is not legal advice, a legal determination, or a compliance certification.
 
-## Try the Demo
+## Demo
 
 **[Launch the live Streamlit demo](https://eu-ai-act-sandbox-app.streamlit.app/)**
 
