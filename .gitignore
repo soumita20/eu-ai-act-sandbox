@@ -52,10 +52,8 @@ agent.ipynb
 deployment/observability/secrets/
 data/prometheus/
 
-
-# Keep the requested implementation and interview notes versioned.
-!docs/interview-notes/
-!docs/interview-notes/questions.md
+docs/interview-notes/
+docs/interview-notes/questions.md
 
 # Local Streamlit smoke-test data.
 tests/.streamlit-temp/
