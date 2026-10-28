@@ -22,7 +22,9 @@ api = [
     "uvicorn[standard]>=0.34,<1",
     "prometheus-client>=0.21,<1",
 ]
-local-llm = ["langchain-ollama>=0.3,<2"]
+local-llm = [
+    "langchain-ollama>=0.3,<2",
+]
 test = [
     "httpx>=0.27,<1",
 ]
