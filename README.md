@@ -6,6 +6,8 @@ A portfolio project demonstrating how an AI application can be screened against 
 
 ## Try the Demo
 
+**[Launch the live Streamlit demo](https://eu-ai-act-sandbox-app.streamlit.app/)**
+
 The Streamlit app uses synthetic assessment facts and two registered first-party examples: a message assistant and a research assistant. On **Run assessment**, choose one of four entries from the application or scenario menu:
 
 | Scenario | Demonstration | Expected result |
@@ -18,14 +20,18 @@ The Article 5 screen does not label a system legally prohibited from a pre-fille
 
 ### Run locally
 
-Requirements: Python 3.14, `uv`, and the local embedding model and verified regulatory index. The model and index are generated artifacts and are intentionally excluded from Git. Prepare them by following [the regulatory corpus guide](docs/regulatory-corpus.md).
+Requirements: Python 3.14 and `uv`. The verified Demo index is included in the repository. If the pinned embedding model is not present locally, the app downloads the exact approved model revision on first use. To rebuild or evaluate the corpus, follow [the regulatory corpus guide](docs/regulatory-corpus.md).
 
 ```powershell
-uv sync --locked --extra ui --extra workflow --extra embeddings
+uv sync --locked --extra ui
 uv run streamlit run ui/app.py --server.address 127.0.0.1
 ```
 
 Open the local URL printed by Streamlit. Select a baseline application or one of the two regulatory scenarios, then inspect **History** and **Replay** to review stored and integrity-checked assessments.
+
+### Deploy on Streamlit Community Cloud
+
+The live app is available at [eu-ai-act-sandbox-app.streamlit.app](https://eu-ai-act-sandbox-app.streamlit.app/). To redeploy it, select `ui/app.py` from the repository's default branch and use Python 3.14. The verified index is shipped with the repository. On the first app startup, the UI downloads the pinned Apache-2.0 embedding model revision from Hugging Face and reuses the cached snapshot while that app instance remains available. The first startup can take longer while the model downloads.
 
 ## What it demonstrates
 
@@ -52,7 +58,7 @@ uv run --locked ruff check src tests ui scripts
 uv run --locked python -m unittest discover -s tests -v
 ```
 
-The test suite includes deterministic control and workflow checks, API and retrieval contracts, replay integrity, and stored red-team case coverage. Generated reports and model/index artifacts are local build outputs.
+The test suite includes deterministic control and workflow checks, API and retrieval contracts, replay integrity, and stored red-team case coverage. Generated reports and local model caches remain build outputs; the verified Demo index is versioned.
 
 ## Boundaries and limitations
 

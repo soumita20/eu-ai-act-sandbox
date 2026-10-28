@@ -23,6 +23,9 @@ htmlcov/
 # Local model and generated retrieval index data
 /models/
 data/index/
+!data/index/
+data/index/*
+!data/index/phase1-regulatory-index-v3.json
 
 # Local databases and editor files
 *.db

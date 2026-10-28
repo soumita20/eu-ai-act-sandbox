@@ -294,6 +294,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "pydantic" },
     { name = "pypdf" },
+    { name = "sentence-transformers" },
 ]
 
 [package.optional-dependencies]
@@ -301,9 +302,6 @@ api = [
     { name = "fastapi" },
     { name = "prometheus-client" },
     { name = "uvicorn", extra = ["standard"] },
-]
-embeddings = [
-    { name = "sentence-transformers" },
 ]
 otlp = [
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -342,11 +340,11 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "pypdf", specifier = ">=6,<7" },
     { name = "ruff", marker = "extra == 'quality'", specifier = ">=0.14,<1" },
-    { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=6,<7" },
+    { name = "sentence-transformers", specifier = ">=6,<7" },
     { name = "streamlit", marker = "extra == 'ui'", specifier = ">=1.66.1,<2" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.34,<1" },
 ]
-provides-extras = ["embeddings", "postgres", "api", "test", "tracing", "ui", "quality", "otlp"]
+provides-extras = ["postgres", "api", "test", "tracing", "ui", "quality", "otlp"]
 
 [[package]]
 name = "fastapi"

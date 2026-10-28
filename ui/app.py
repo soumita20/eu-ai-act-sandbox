@@ -37,6 +37,20 @@ def _bounded_setting(name: str, default: int, lower: int, upper: int) -> int:
 DEMO_RATE_LIMIT_WINDOW_SECONDS = _bounded_setting("DEMO_RATE_LIMIT_WINDOW_SECONDS", 3600, 60, 86400)
 DEMO_MAX_RUNS_PER_SESSION = _bounded_setting("DEMO_MAX_RUNS_PER_SESSION", 5, 1, 100)
 DEMO_MAX_RUNS_GLOBAL = _bounded_setting("DEMO_MAX_RUNS_GLOBAL", 250, 1, 10000)
+DEMO_EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+DEMO_EMBEDDING_MODEL_REVISION = "b8903db39f65d93ae28d49a37c4f3fa90c5f94e0"
+DEMO_EMBEDDING_MODEL_FILES = (
+    "1_Pooling/config.json",
+    "config.json",
+    "config_sentence_transformers.json",
+    "model.safetensors",
+    "modules.json",
+    "sentence_bert_config.json",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.txt",
+)
 
 
 @st.cache_resource
@@ -46,10 +60,26 @@ def get_store() -> DemoAssessmentStore:
 
 @st.cache_resource
 def get_retrieval_runtime() -> tuple[RegulatoryRetrievalService, object]:
-    """Load the verified local index and its pinned model once per Demo process."""
+    """Load the verified index and pinned model once per Demo process."""
     index_path = Path(os.environ.get("RETRIEVAL_INDEX_PATH", "data/index/phase1-regulatory-index-v3.json"))
     index = FileIndexStore(index_path).load_verified()
+    if (
+        index.manifest.embedding_model_id != DEMO_EMBEDDING_MODEL_ID
+        or index.manifest.embedding_model_revision != DEMO_EMBEDDING_MODEL_REVISION
+    ):
+        raise RuntimeError("the published Demo index does not use the pinned Demo embedding model")
     model_path = Path(os.environ.get("EMBEDDING_MODEL_PATH", "models/all-MiniLM-L6-v2"))
+    if not (model_path / "model.safetensors").is_file():
+        try:
+            from huggingface_hub import snapshot_download
+
+            model_path = Path(snapshot_download(
+                repo_id=DEMO_EMBEDDING_MODEL_ID,
+                revision=DEMO_EMBEDDING_MODEL_REVISION,
+                allow_patterns=list(DEMO_EMBEDDING_MODEL_FILES),
+            ))
+        except Exception as exc:
+            raise RuntimeError("the pinned Demo embedding model could not be downloaded") from exc
     device_value = os.environ.get("EMBEDDING_DEVICE", "auto").strip().lower()
     embedder = LocalSentenceTransformerEmbedder(
         model_path=model_path,
@@ -207,7 +237,7 @@ if page == "Run assessment":
             retrieval_runtime = get_retrieval_runtime()
         except (OSError, RuntimeError, ValueError) as exc:
             retrieval_runtime = None
-            st.warning(f"The legal index or local embedding model is unavailable ({type(exc).__name__}). The assessment will continue with retrieval marked unavailable.")
+            st.warning(f"Regulatory retrieval is unavailable ({type(exc).__name__}: {exc}). The assessment will continue without retrieved legal passages.")
         with st.spinner("Running deterministic controls, stored adversarial cases, and legal evidence retrieval..."):
             result = run_and_record_demo_assessment(
                 request, store=store, retrieval_runtime=retrieval_runtime,
