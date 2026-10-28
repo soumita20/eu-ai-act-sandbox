@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
@@ -16,9 +16,17 @@ MAX_QUESTION_CHARS = 1_000
 MAX_PASSAGES = 6
 MAX_PASSAGE_CHARS = 4_000
 
-
+if TYPE_CHECKING:
+    from langchain_ollama import ChatOllama
+    
 def build_local_chat_model() -> ChatOllama:
-    """Connect to a model already served by the local Ollama installation."""
+    try:
+        from langchain_ollama import ChatOllama
+    except ImportError as exc:
+        raise RuntimeError(
+            "Install the local-llm extra to use local Ollama."
+        ) from exc
+
     model_name = os.environ.get("OLLAMA_MODEL", "").strip()
     if not model_name:
         raise RuntimeError("Set OLLAMA_MODEL to a model tag installed in Ollama.")
