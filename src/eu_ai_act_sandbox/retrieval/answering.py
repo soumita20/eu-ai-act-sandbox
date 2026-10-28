@@ -6,9 +6,6 @@ import json
 import os
 from typing import TYPE_CHECKING, Sequence
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
-
 from .search import RetrievedEvidence
 
 
@@ -18,7 +15,7 @@ MAX_PASSAGE_CHARS = 4_000
 
 if TYPE_CHECKING:
     from langchain_ollama import ChatOllama
-    
+
 def build_local_chat_model() -> ChatOllama:
     try:
         from langchain_ollama import ChatOllama
@@ -77,7 +74,7 @@ def answer_from_evidence(
 
     if not passages:
         raise ValueError("No usable regulatory evidence was retrieved.")
-
+    from langchain_core.messages import HumanMessage, SystemMessage
     messages = [
         SystemMessage(content=(
             "You explain regulatory evidence for human review. Answer only from the "
