@@ -20,6 +20,10 @@ from eu_ai_act_sandbox.retrieval import (
     FileHybridRetriever, FileIndexStore, FileRetrievalBackend,
     LocalSentenceTransformerEmbedder, RegulatoryRetrievalService,
 )
+from eu_ai_act_sandbox.retrieval.answering import (
+    answer_from_evidence,
+    build_local_chat_model,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -246,6 +250,33 @@ if page == "Run assessment":
         st.success("Assessment completed and recorded in the bounded local Demo history.")
     if "last_assessment" in st.session_state:
         show_assessment(st.session_state["last_assessment"])
+        if os.environ.get("ENABLE_LOCAL_OLLAMA", "").strip() == "1":
+            st.subheader("Ask about retrieved evidence")
+
+            with st.form("local_ollama_question"):
+                question = st.text_input(
+                    "Question",
+                    max_chars=1_000,
+                    placeholder="What does the retrieved evidence say about this assessment?",
+                )
+                submitted = st.form_submit_button("Generate evidence-grounded answer")
+
+            if submitted:
+                assessment = st.session_state["last_assessment"]
+                passages = tuple(
+                    passage
+                    for control in assessment.regulatory_evidence
+                    for passage in control.evidence
+                )
+                try:
+                    answer = answer_from_evidence(
+                        question,
+                        passages,
+                        model=build_local_chat_model(),
+                    )
+                    st.markdown(answer)
+                except Exception as exc:
+                    st.error(f"Local Ollama request failed ({type(exc).__name__}): {exc}")
 
 elif page == "History":
     st.subheader("Recent local Demo assessments")
